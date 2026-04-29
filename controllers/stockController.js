@@ -1,0 +1,104 @@
+const { Stock, Material } = require('../models/Transactions');
+
+// Get all stock with filters
+exports.getAll = async (req, res) => {
+  try {
+    const { branch, material, type, from, to, page = 1, limit = 50 } = req.query;
+    const query = {};
+    if (branch) query.branch = branch;
+    if (material) query.material = material;
+    if (type) query.type = type;
+    if (from || to) {
+      query.date = {};
+      if (from) query.date.$gte = new Date(from);
+      if (to) query.date.$lte = new Date(to);
+    }
+    const skip = (page - 1) * limit;
+    const [data, total] = await Promise.all([
+      Stock.find(query)
+        .populate('material', 'name unit code')
+        .populate('branch', 'name')
+        .populate('createdBy', 'name')
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
+      Stock.countDocuments(query),
+    ]);
+    res.json({ success: true, data, total, page: Number(page), pages: Math.ceil(total / limit) });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.getOne = async (req, res) => {
+  try {
+    const doc = await Stock.findById(req.params.id)
+      .populate('material branch createdBy');
+    if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, data: doc });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.create = async (req, res) => {
+  try {
+    const doc = await Stock.create({ ...req.body, createdBy: req.user.id });
+    await doc.populate('material branch createdBy');
+    res.status(201).json({ success: true, data: doc });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.update = async (req, res) => {
+  try {
+    const doc = await Stock.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+      .populate('material branch createdBy');
+    if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
+    res.json({ success: true, data: doc });
+  } catch (err) {
+    res.status(400).json({ success: false, message: err.message });
+  }
+};
+
+exports.remove = async (req, res) => {
+  try {
+    await Stock.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Deleted' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Get current stock summary per material
+exports.summary = async (req, res) => {
+  try {
+    const { branch } = req.query;
+    const match = {};
+    if (branch) match.branch = require('mongoose').Types.ObjectId(branch);
+    const summary = await Stock.aggregate([
+      { $match: match },
+      {
+        $group: {
+          _id: { material: '$material', type: '$type' },
+          total: { $sum: '$quantity' },
+        },
+      },
+      {
+        $group: {
+          _id: '$_id.material',
+          in: { $sum: { $cond: [{ $eq: ['$_id.type', 'in'] }, '$total', 0] } },
+          out: { $sum: { $cond: [{ $eq: ['$_id.type', 'out'] }, '$total', 0] } },
+        },
+      },
+      { $addFields: { balance: { $subtract: ['$in', '$out'] } } },
+      { $lookup: { from: 'materials', localField: '_id', foreignField: '_id', as: 'material' } },
+      { $unwind: '$material' },
+      { $sort: { 'material.name': 1 } },
+    ]);
+    res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};

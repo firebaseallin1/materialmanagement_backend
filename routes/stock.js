@@ -1,0 +1,11 @@
+const express = require('express');
+const router = express.Router();
+const ctrl = require('../controllers/stockController');
+const { protect } = require('../middleware/auth');
+router.get('/', protect, ctrl.getAll);
+router.get('/summary', protect, ctrl.summary);
+router.get('/:id', protect, ctrl.getOne);
+router.post('/', protect, ctrl.create);
+router.put('/:id', protect, ctrl.update);
+router.delete('/:id', protect, ctrl.remove);
+module.exports = router;

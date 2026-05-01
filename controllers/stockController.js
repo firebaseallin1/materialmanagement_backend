@@ -71,12 +71,13 @@ exports.remove = async (req, res) => {
   }
 };
 
-// Get current stock summary per material
+// Total stock summary per material (all branches combined)
 exports.summary = async (req, res) => {
   try {
+    const mongoose = require('mongoose');
     const { branch } = req.query;
     const match = {};
-    if (branch) match.branch = require('mongoose').Types.ObjectId(branch);
+    if (branch) match.branch = new mongoose.Types.ObjectId(branch);
     const summary = await Stock.aggregate([
       { $match: match },
       {
@@ -98,6 +99,79 @@ exports.summary = async (req, res) => {
       { $sort: { 'material.name': 1 } },
     ]);
     res.json({ success: true, data: summary });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// Stock breakdown per branch → materials with in / out / balance
+exports.branchWise = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const { branch } = req.query;
+    const match = {};
+    if (branch) match.branch = new mongoose.Types.ObjectId(branch);
+
+    const data = await Stock.aggregate([
+      { $match: match },
+      // Group by branch + material + type
+      {
+        $group: {
+          _id: { branch: '$branch', material: '$material', type: '$type' },
+          total: { $sum: '$quantity' },
+        },
+      },
+      // Pivot in / out per branch-material pair
+      {
+        $group: {
+          _id: { branch: '$_id.branch', material: '$_id.material' },
+          in:  { $sum: { $cond: [{ $eq: ['$_id.type', 'in']  }, '$total', 0] } },
+          out: { $sum: { $cond: [{ $eq: ['$_id.type', 'out'] }, '$total', 0] } },
+        },
+      },
+      { $addFields: { balance: { $subtract: ['$in', '$out'] } } },
+      // Join material details
+      {
+        $lookup: {
+          from: 'materials',
+          localField: '_id.material',
+          foreignField: '_id',
+          as: 'material',
+        },
+      },
+      { $unwind: '$material' },
+      // Join branch details
+      {
+        $lookup: {
+          from: 'branches',
+          localField: '_id.branch',
+          foreignField: '_id',
+          as: 'branch',
+        },
+      },
+      { $unwind: '$branch' },
+      // Group into branch buckets
+      {
+        $group: {
+          _id: '$_id.branch',
+          branch:       { $first: '$branch' },
+          totalIn:      { $sum: '$in' },
+          totalOut:     { $sum: '$out' },
+          totalBalance: { $sum: '$balance' },
+          materials: {
+            $push: {
+              material: '$material',
+              in:       '$in',
+              out:      '$out',
+              balance:  '$balance',
+            },
+          },
+        },
+      },
+      { $sort: { 'branch.name': 1 } },
+    ]);
+
+    res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

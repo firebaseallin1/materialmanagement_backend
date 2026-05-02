@@ -5,6 +5,7 @@ const { protect } = require('../middleware/auth');
 router.get('/', protect, ctrl.getAll);
 router.get('/summary', protect, ctrl.summary);
 router.get('/branch-wise', protect, ctrl.branchWise);
+router.get('/balance', protect, ctrl.balance);
 router.get('/:id', protect, ctrl.getOne);
 router.post('/', protect, ctrl.create);
 router.put('/:id', protect, ctrl.update);

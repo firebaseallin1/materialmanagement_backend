@@ -104,6 +104,31 @@ exports.summary = async (req, res) => {
   }
 };
 
+// Balance for a specific material + branch
+exports.balance = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const { material, branch } = req.query;
+    if (!material || !branch) return res.json({ success: true, balance: 0 });
+
+    const rows = await Stock.aggregate([
+      {
+        $match: {
+          material: new mongoose.Types.ObjectId(material),
+          branch:   new mongoose.Types.ObjectId(branch),
+        },
+      },
+      { $group: { _id: '$type', total: { $sum: '$quantity' } } },
+    ]);
+
+    const inQty  = rows.find(r => r._id === 'in')?.total  ?? 0;
+    const outQty = rows.find(r => r._id === 'out')?.total ?? 0;
+    res.json({ success: true, balance: inQty - outQty });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 // Stock breakdown per branch → materials with in / out / balance
 exports.branchWise = async (req, res) => {
   try {

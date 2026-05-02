@@ -2,13 +2,20 @@ const mongoose = require('mongoose');
 
 // Material Stock
 const stockSchema = new mongoose.Schema({
-  material: { type: mongoose.Schema.Types.ObjectId, ref: 'Material', required: true },
-  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  type: { type: String, enum: ['in', 'out'], required: true },
-  quantity: { type: Number, required: true, min: 0 },
-  date: { type: Date, required: true, default: Date.now },
-  remarks: { type: String },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  material:        { type: mongoose.Schema.Types.ObjectId, ref: 'Material', required: true },
+  branch:          { type: mongoose.Schema.Types.ObjectId, ref: 'Branch',   required: true },
+  type:            { type: String, enum: ['in', 'out'], required: true },
+  quantity:        { type: Number, required: true, min: 0 },
+  date:            { type: Date, required: true, default: Date.now },
+  remarks:         { type: String },
+  // Transaction type: 'store' = initial stock, 'stock_in' = transfer in, 'stock_out' = issue out
+  transactionType: { type: String, enum: ['store', 'stock_in', 'stock_out'], default: 'store' },
+  // For transfers (stock_in / stock_out): source and destination branches
+  fromBranch:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  toBranch:        { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  // Links the two ledger records created by a single transfer event
+  transferRef:     { type: String, index: true },
+  createdBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 // Measurement

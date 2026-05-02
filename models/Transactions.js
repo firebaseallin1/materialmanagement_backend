@@ -8,13 +8,19 @@ const stockSchema = new mongoose.Schema({
   quantity:        { type: Number, required: true, min: 0 },
   date:            { type: Date, required: true, default: Date.now },
   remarks:         { type: String },
-  // Transaction type: 'store' = initial stock, 'stock_in' = transfer in, 'stock_out' = issue out
-  transactionType: { type: String, enum: ['store', 'stock_in', 'stock_out'], default: 'store' },
-  // For transfers (stock_in / stock_out): source and destination branches
+  // 'store' = initial stock addition, 'stock_move' = inter-branch transfer
+  transactionType: { type: String, enum: ['store', 'stock_move'], default: 'store' },
+  // For stock_move: source and destination branches
   fromBranch:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   toBranch:        { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  // Links the two ledger records created by a single transfer event
+  // Links the two ledger records created by one stock_move event
   transferRef:     { type: String, index: true },
+  // Transport details (for stock_move)
+  transportName:   { type: String },
+  driverName:      { type: String },
+  vehicleName:     { type: String },
+  distance:        { type: Number },
+  cost:            { type: Number },
   createdBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

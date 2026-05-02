@@ -42,9 +42,9 @@ exports.history = async (req, res) => {
 
     const match = {
       $or: [
-        { transactionType: { $exists: false } },                                  // legacy
+        { transactionType: { $exists: false } },              // legacy records
         { transactionType: 'store' },
-        { transactionType: { $in: ['stock_in', 'stock_out'] }, type: 'out' },    // one side of transfer
+        { transactionType: 'stock_move', type: 'out' },      // one side of each move event
       ],
     };
 
@@ -90,7 +90,11 @@ exports.getOne = async (req, res) => {
 // ── Create ────────────────────────────────────────────────────────────────────
 exports.create = async (req, res) => {
   try {
-    const { transactionType = 'store', material, branch, fromBranch, toBranch, quantity, date, remarks } = req.body;
+    const {
+      transactionType = 'store',
+      material, branch, fromBranch, toBranch, quantity, date, remarks,
+      transportName, driverName, vehicleName, distance, cost,
+    } = req.body;
     const mongoose = require('mongoose');
 
     // ── STORE STOCK ──────────────────────────────────────────────────────────
@@ -103,14 +107,12 @@ exports.create = async (req, res) => {
         material, branch, type: 'in', transactionType: 'store',
         quantity, date: date || new Date(), remarks, createdBy: req.user.id,
       });
-      await _populate(Stock.findById(doc._id)).then(d => {
-        res.status(201).json({ success: true, data: d });
-      });
-      return;
+      const populated = await _populate(Stock.findById(doc._id));
+      return res.status(201).json({ success: true, data: populated });
     }
 
-    // ── TRANSFER (stock_in / stock_out) ──────────────────────────────────────
-    if (!['stock_in', 'stock_out'].includes(transactionType)) {
+    // ── STOCK MOVE (inter-branch transfer) ────────────────────────────────────
+    if (transactionType !== 'stock_move') {
       return res.status(400).json({ success: false, message: 'Invalid transactionType' });
     }
     if (!fromBranch || !toBranch) {
@@ -135,13 +137,18 @@ exports.create = async (req, res) => {
     }
 
     const transferRef = crypto.randomUUID();
-    const common = { material, transactionType, fromBranch, toBranch, transferRef, quantity, date: date || new Date(), remarks, createdBy: req.user.id };
+    const common = {
+      material, transactionType: 'stock_move', fromBranch, toBranch, transferRef,
+      quantity, date: date || new Date(), remarks,
+      transportName, driverName, vehicleName, distance, cost,
+      createdBy: req.user.id,
+    };
 
-    // Create both ledger entries; if the second fails, clean up the first
+    // Create both ledger entries; roll back first if second fails
     let outDoc = null;
     try {
       outDoc = await Stock.create({ ...common, branch: fromBranch, type: 'out' });
-      await Stock.create({ ...common, branch: toBranch, type: 'in' });
+      await Stock.create({ ...common, branch: toBranch,   type: 'in'  });
     } catch (innerErr) {
       if (outDoc) await Stock.findByIdAndDelete(outDoc._id);
       throw innerErr;
@@ -212,19 +219,9 @@ exports.summary = async (req, res) => {
         { $and: [{ $eq: [{ $ifNull: ['$transactionType', null] }, null] }, { $eq: ['$type', 'in'] }] },
       ],
     };
-    // isTransferIn: transfer record credited to a branch (receiving side)
-    const isTransferIn = {
-      $and: [
-        { $in: ['$transactionType', ['stock_in', 'stock_out']] },
-        { $eq: ['$type', 'in'] },
-      ],
-    };
-    // isTransferOut: transfer record debited from a branch (sending side)
-    const isTransferOut = {
-      $and: [
-        { $in: ['$transactionType', ['stock_in', 'stock_out']] },
-        { $eq: ['$type', 'out'] },
-      ],
+    // isMoveOut: stock_move deduction from source branch
+    const isMoveOut = {
+      $and: [{ $eq: ['$transactionType', 'stock_move'] }, { $eq: ['$type', 'out'] }],
     };
 
     const summary = await Stock.aggregate([
@@ -232,13 +229,10 @@ exports.summary = async (req, res) => {
       {
         $group: {
           _id: '$material',
-          // Balance uses all ledger in/out (always correct regardless of transactionType)
-          totalIn:     { $sum: { $cond: [{ $eq: ['$type', 'in']  }, '$quantity', 0] } },
-          totalOut:    { $sum: { $cond: [{ $eq: ['$type', 'out'] }, '$quantity', 0] } },
-          // Breakdown by transaction type
-          stored:      { $sum: { $cond: [isStore,       '$quantity', 0] } },
-          transferIn:  { $sum: { $cond: [isTransferIn,  '$quantity', 0] } },
-          transferOut: { $sum: { $cond: [isTransferOut, '$quantity', 0] } },
+          totalIn:  { $sum: { $cond: [{ $eq: ['$type', 'in']  }, '$quantity', 0] } },
+          totalOut: { $sum: { $cond: [{ $eq: ['$type', 'out'] }, '$quantity', 0] } },
+          stored:   { $sum: { $cond: [isStore,   '$quantity', 0] } },
+          moved:    { $sum: { $cond: [isMoveOut, '$quantity', 0] } },
         },
       },
       { $addFields: { balance: { $subtract: ['$totalIn', '$totalOut'] } } },

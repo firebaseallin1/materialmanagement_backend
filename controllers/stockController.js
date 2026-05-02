@@ -204,17 +204,44 @@ exports.summary = async (req, res) => {
     const { branch } = req.query;
     const match = {};
     if (branch) match.branch = new mongoose.Types.ObjectId(branch);
+
+    // isStore: transactionType = 'store' OR legacy record with type = 'in' (no transactionType)
+    const isStore = {
+      $or: [
+        { $eq: ['$transactionType', 'store'] },
+        { $and: [{ $eq: [{ $ifNull: ['$transactionType', null] }, null] }, { $eq: ['$type', 'in'] }] },
+      ],
+    };
+    // isTransferIn: transfer record credited to a branch (receiving side)
+    const isTransferIn = {
+      $and: [
+        { $in: ['$transactionType', ['stock_in', 'stock_out']] },
+        { $eq: ['$type', 'in'] },
+      ],
+    };
+    // isTransferOut: transfer record debited from a branch (sending side)
+    const isTransferOut = {
+      $and: [
+        { $in: ['$transactionType', ['stock_in', 'stock_out']] },
+        { $eq: ['$type', 'out'] },
+      ],
+    };
+
     const summary = await Stock.aggregate([
       { $match: match },
-      { $group: { _id: { material: '$material', type: '$type' }, total: { $sum: '$quantity' } } },
       {
         $group: {
-          _id: '$_id.material',
-          in:  { $sum: { $cond: [{ $eq: ['$_id.type', 'in']  }, '$total', 0] } },
-          out: { $sum: { $cond: [{ $eq: ['$_id.type', 'out'] }, '$total', 0] } },
+          _id: '$material',
+          // Balance uses all ledger in/out (always correct regardless of transactionType)
+          totalIn:     { $sum: { $cond: [{ $eq: ['$type', 'in']  }, '$quantity', 0] } },
+          totalOut:    { $sum: { $cond: [{ $eq: ['$type', 'out'] }, '$quantity', 0] } },
+          // Breakdown by transaction type
+          stored:      { $sum: { $cond: [isStore,       '$quantity', 0] } },
+          transferIn:  { $sum: { $cond: [isTransferIn,  '$quantity', 0] } },
+          transferOut: { $sum: { $cond: [isTransferOut, '$quantity', 0] } },
         },
       },
-      { $addFields: { balance: { $subtract: ['$in', '$out'] } } },
+      { $addFields: { balance: { $subtract: ['$totalIn', '$totalOut'] } } },
       { $lookup: { from: 'materials', localField: '_id', foreignField: '_id', as: 'material' } },
       { $unwind: '$material' },
       { $sort: { 'material.name': 1 } },

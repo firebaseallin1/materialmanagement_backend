@@ -169,12 +169,17 @@ exports.update = async (req, res) => {
     if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
 
     if (doc.transferRef) {
-      // For transfers: only allow updating quantity, date, remarks on both paired records
-      const { quantity, date, remarks } = req.body;
+      // For transfers: update quantity, date, remarks and transport details on both paired records
+      const { quantity, date, remarks, transportName, driverName, vehicleName, distance, cost } = req.body;
       const updates = {};
-      if (quantity !== undefined) updates.quantity = quantity;
-      if (date     !== undefined) updates.date     = date;
-      if (remarks  !== undefined) updates.remarks  = remarks;
+      if (quantity       !== undefined) updates.quantity       = quantity;
+      if (date           !== undefined) updates.date           = date;
+      if (remarks        !== undefined) updates.remarks        = remarks;
+      if (transportName  !== undefined) updates.transportName  = transportName;
+      if (driverName     !== undefined) updates.driverName     = driverName;
+      if (vehicleName    !== undefined) updates.vehicleName    = vehicleName;
+      if (distance       !== undefined) updates.distance       = distance;
+      if (cost           !== undefined) updates.cost           = cost;
       await Stock.updateMany({ transferRef: doc.transferRef }, { $set: updates }, { runValidators: true });
     } else {
       await Stock.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });

@@ -43,9 +43,10 @@ const attendanceSchema = new mongoose.Schema({
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   date: { type: Date, required: true },
-  status: { type: String, enum: ['present', 'absent', 'halfday', 'leave'], required: true },
-  inTime: { type: String },
-  outTime: { type: String },
+  isPresent: { type: Boolean, default: false },
+  otEnabled: { type: Boolean, default: false },
+  otHours: { type: Number, default: 0 },
+  hourRate: { type: Number, default: 0 },
   remarks: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });

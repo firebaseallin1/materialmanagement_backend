@@ -7,11 +7,11 @@ const generateToken = (id) =>
 // @POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, phone, role, branch } = req.body;
-    const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ success: false, message: 'Email already registered' });
-    const user = await User.create({ name, email, password, phone, role, branch });
-    res.status(201).json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+    const { name, userId, password, phone, role, branch } = req.body;
+    const exists = await User.findOne({ userId });
+    if (exists) return res.status(400).json({ success: false, message: 'User ID already registered' });
+    const user = await User.create({ name, userId, password, phone, role, branch });
+    res.status(201).json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, userId: user.userId, role: user.role } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -20,18 +20,18 @@ exports.register = async (req, res) => {
 // @POST /api/auth/login
 exports.login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { userId, password } = req.body;
     console.log(req.body);
-    if (!email || !password)
+    if (!userId || !password)
       {
-      return res.status(400).json({ success: false, message: 'Email and password required' });
-      } 
-    const user = await User.findOne({ email }).populate('branch');
+      return res.status(400).json({ success: false, message: 'User ID and password required' });
+      }
+    const user = await User.findOne({ userId }).populate('branch');
     console.log(user);
     if (!user)
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account deactivated' });
-    res.json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, email: user.email, role: user.role, branch: user.branch } });
+    res.json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, userId: user.userId, role: user.role, branch: user.branch } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

@@ -40,10 +40,18 @@ const materialSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// User Category
+const userCategorySchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, unique: true },
+  description: { type: String },
+  isActive: { type: Boolean, default: true },
+}, { timestamps: true });
+
 module.exports = {
   Location: mongoose.model('Location', locationSchema),
   Branch: mongoose.model('Branch', branchSchema),
   Category: mongoose.model('Category', categorySchema),
   ExpenseCategory: mongoose.model('ExpenseCategory', expenseCategorySchema),
+  UserCategory: mongoose.model('UserCategory', userCategorySchema),
   Material: mongoose.model('Material', materialSchema),
 };

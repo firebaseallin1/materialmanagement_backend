@@ -22,6 +22,7 @@ app.use('/api/measurements', require('./routes/measurements'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/transport', require('./routes/transport'));
 app.use('/api/expense-categories', require('./routes/expense-categories'));
+app.use('/api/user-categories', require('./routes/user-categories'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/payments', require('./routes/payments'));
 app.use('/api/reports', require('./routes/reports'));

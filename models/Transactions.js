@@ -88,6 +88,19 @@ const paymentSchema = new mongoose.Schema({
   referenceNo: { type: String },
   description: { type: String },
   type: { type: String, enum: ['received', 'paid'], required: true },
+  // Employee salary payment linkage
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  advanceAdjustment: { type: Number, default: 0 },
+  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+}, { timestamps: true });
+
+// Advance
+const advanceSchema = new mongoose.Schema({
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  amount: { type: Number, required: true, min: 0 },
+  date: { type: Date, required: true, default: Date.now },
+  remarks: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
@@ -98,4 +111,5 @@ module.exports = {
   Transport: mongoose.model('Transport', transportSchema),
   Expense: mongoose.model('Expense', expenseSchema),
   Payment: mongoose.model('Payment', paymentSchema),
+  Advance: mongoose.model('Advance', advanceSchema),
 };

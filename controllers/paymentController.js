@@ -8,7 +8,7 @@ exports.getAll = async (req, res) => {
     if (from || to) { query.date = {}; if (from) query.date.$gte = new Date(from); if (to) query.date.$lte = new Date(to); }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      Payment.find(query).populate('branch','name').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
+      Payment.find(query).populate('branch','name').populate('employee','name').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
       Payment.countDocuments(query),
     ]);
     res.json({ success: true, data, total });
@@ -16,7 +16,7 @@ exports.getAll = async (req, res) => {
 };
 exports.getOne = async (req, res) => {
   try {
-    const doc = await Payment.findById(req.params.id).populate('branch createdBy');
+    const doc = await Payment.findById(req.params.id).populate('branch employee createdBy');
     if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, data: doc });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }

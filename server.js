@@ -25,6 +25,7 @@ app.use('/api/expense-categories', require('./routes/expense-categories'));
 app.use('/api/user-categories', require('./routes/user-categories'));
 app.use('/api/expenses', require('./routes/expenses'));
 app.use('/api/payments', require('./routes/payments'));
+app.use('/api/advances', require('./routes/advance'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 

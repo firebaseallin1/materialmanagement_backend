@@ -1,4 +1,4 @@
-const { Payment } = require('../models/Transactions');
+const { Payment, Expense } = require('../models/Transactions');
 exports.getAll = async (req, res) => {
   try {
     const { branch, type, category, from, to, page = 1, limit = 50 } = req.query;
@@ -25,6 +25,13 @@ exports.getOne = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const doc = await Payment.create({ ...req.body, createdBy: req.user.id });
+    // Mark linked expenses as paid
+    if (req.body.category === 'expense' && Array.isArray(req.body.expenseIds) && req.body.expenseIds.length) {
+      await Expense.updateMany(
+        { _id: { $in: req.body.expenseIds } },
+        { $set: { isPaid: true, paymentId: doc._id } }
+      );
+    }
     res.status(201).json({ success: true, data: doc });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 };

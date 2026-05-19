@@ -76,6 +76,9 @@ const expenseSchema = new mongoose.Schema({
   paidBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   receipt: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  // Payment tracking — set when paid via payment screen
+  isPaid: { type: Boolean, default: false },
+  paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
 }, { timestamps: true });
 
 // Payment
@@ -102,6 +105,8 @@ const paymentSchema = new mongoose.Schema({
   thisWeekOutstanding: { type: Number, default: 0 },
   // Transport-specific
   vehicleNo: { type: String },
+  // Expense payment linkage
+  expenseIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Expense' }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

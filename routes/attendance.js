@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/attendanceController');
 const { protect } = require('../middleware/auth');
+router.get('/summary', protect, ctrl.getSummary);
 router.get('/', protect, ctrl.getAll);
 router.get('/:id', protect, ctrl.getOne);
 router.post('/', protect, ctrl.create);

@@ -3,14 +3,12 @@ const router = express.Router();
 const User = require('../models/User');
 const { protect, adminOnly } = require('../middleware/auth');
 
-// Generate next available userId for a given role+category prefix
-// GET /api/users/generate-id?rolePrefix=ADM&catPrefix=SAL
+// Generate next available userId for a given category prefix
+// GET /api/users/generate-id?catPrefix=SAL
 router.get('/generate-id', protect, async (req, res) => {
   try {
-    const { rolePrefix = '', catPrefix = '' } = req.query;
-    const rp = rolePrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-    const cp = catPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
-    const prefix = rp + cp;
+    const { catPrefix = '' } = req.query;
+    const prefix = catPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
     const pattern = new RegExp(`^${prefix}\\d{3}$`);
     const users = await User.find({ userId: pattern }).select('userId');
     const nums = users.map(u => parseInt(u.userId.slice(-3), 10)).filter(n => !isNaN(n));

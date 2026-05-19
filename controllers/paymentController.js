@@ -1,10 +1,11 @@
 const { Payment } = require('../models/Transactions');
 exports.getAll = async (req, res) => {
   try {
-    const { branch, type, from, to, page = 1, limit = 50 } = req.query;
+    const { branch, type, category, from, to, page = 1, limit = 50 } = req.query;
     const query = {};
     if (branch) query.branch = branch;
     if (type) query.type = type;
+    if (category) query.category = category;
     if (from || to) { query.date = {}; if (from) query.date.$gte = new Date(from); if (to) query.date.$lte = new Date(to); }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([

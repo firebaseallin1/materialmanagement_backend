@@ -41,7 +41,7 @@ const measurementSchema = new mongoose.Schema({
 // Attendance
 const attendanceSchema = new mongoose.Schema({
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
   date: { type: Date, required: true },
   isPresent: { type: Boolean, default: false },
   otEnabled: { type: Boolean, default: false },
@@ -80,7 +80,7 @@ const expenseSchema = new mongoose.Schema({
 
 // Payment
 const paymentSchema = new mongoose.Schema({
-  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   partyName: { type: String, required: true },
   amount: { type: Number, required: true, min: 0 },
   paymentMode: { type: String, enum: ['cash', 'cheque', 'online', 'upi'], required: true },
@@ -88,15 +88,26 @@ const paymentSchema = new mongoose.Schema({
   referenceNo: { type: String },
   description: { type: String },
   type: { type: String, enum: ['received', 'paid'], required: true },
-  // Employee salary payment linkage
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  category: { type: String, enum: ['labor', 'transport', 'expense', 'other'], default: 'other' },
+  totalDue: { type: Number },
+  // Employee salary/advance payment linkage
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
   advanceAdjustment: { type: Number, default: 0 },
+  // Labor / Transport payment period details
+  periodFrom: { type: Date },
+  periodTo: { type: Date },
+  earnings: { type: Number, default: 0 },
+  presentDays: { type: Number, default: 0 },
+  previousOutstanding: { type: Number, default: 0 },
+  thisWeekOutstanding: { type: Number, default: 0 },
+  // Transport-specific
+  vehicleNo: { type: String },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 // Advance
 const advanceSchema = new mongoose.Schema({
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   amount: { type: Number, required: true, min: 0 },
   date: { type: Date, required: true, default: Date.now },

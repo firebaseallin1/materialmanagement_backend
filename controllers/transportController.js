@@ -6,7 +6,7 @@ exports.getAll = async (req, res) => {
     if (from || to) { query.date = {}; if (from) query.date.$gte = new Date(from); if (to) query.date.$lte = new Date(to); }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      Transport.find(query).populate('fromLocation toLocation','name').populate('material','name unit').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
+      Transport.find(query).populate('fromBranch toBranch','name').populate('material','name unit').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
       Transport.countDocuments(query),
     ]);
     res.json({ success: true, data, total });
@@ -14,7 +14,7 @@ exports.getAll = async (req, res) => {
 };
 exports.getOne = async (req, res) => {
   try {
-    const doc = await Transport.findById(req.params.id).populate('fromLocation toLocation material createdBy');
+    const doc = await Transport.findById(req.params.id).populate('fromBranch toBranch material createdBy');
     if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
     res.json({ success: true, data: doc });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }

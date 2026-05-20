@@ -53,10 +53,11 @@ const attendanceSchema = new mongoose.Schema({
 
 // Transport
 const transportSchema = new mongoose.Schema({
+  transportName: { type: String },
   vehicleNo: { type: String, required: true },
   driverName: { type: String, required: true },
-  fromLocation: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', required: true },
-  toLocation: { type: mongoose.Schema.Types.ObjectId, ref: 'Location', required: true },
+  fromBranch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  toBranch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
   material: { type: mongoose.Schema.Types.ObjectId, ref: 'Material' },
   quantity: { type: Number },
   date: { type: Date, required: true, default: Date.now },

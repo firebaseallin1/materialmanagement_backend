@@ -24,17 +24,31 @@ const stockSchema = new mongoose.Schema({
   createdBy:       { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
-// Measurement
+// Measurement row (diary right-page entry)
+const measurementRowSchema = new mongoose.Schema({
+  lFt:    { type: Number, default: 0 },
+  lIn:    { type: Number, default: 0 },
+  dFt:    { type: Number, default: 0 },
+  dIn:    { type: Number, default: 0 },
+  l:      { type: Number, default: 0 },
+  d:      { type: Number, default: 0 },
+  nos:    { type: Number, default: 1 },
+  total:  { type: Number, default: 0 },
+  beamNo: { type: String, default: '' },
+  type:   { type: String, enum: ['inside', 'open'], default: 'inside' },
+  room:   { type: String, default: '' },
+}, { _id: false });
+
+// Measurement (diary-format: header + rows)
 const measurementSchema = new mongoose.Schema({
-  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
-  material: { type: mongoose.Schema.Types.ObjectId, ref: 'Material', required: true },
-  length: { type: Number },
-  breadth: { type: Number },
-  height: { type: Number },
-  quantity: { type: Number, required: true },
-  unit: { type: String, default: 'sqft' },
-  date: { type: Date, required: true, default: Date.now },
-  description: { type: String },
+  branch:   { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  location: { type: String, required: true },
+  site:     { type: String, default: '' },
+  floor:    { type: String, default: '' },
+  villaNo:  { type: String, default: '' },
+  remark:   { type: String, default: '' },
+  date:     { type: Date, required: true, default: Date.now },
+  rows:     { type: [measurementRowSchema], default: [] },
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

@@ -1,14 +1,23 @@
 const { Measurement } = require('../models/Transactions');
 exports.getAll = async (req, res) => {
   try {
-    const { branch, material, from, to, page = 1, limit = 50 } = req.query;
+    const { branch, location, from, to, page = 1, limit = 200 } = req.query;
     const query = {};
     if (branch) query.branch = branch;
-    if (material) query.material = material;
-    if (from || to) { query.date = {}; if (from) query.date.$gte = new Date(from); if (to) query.date.$lte = new Date(to); }
+    if (location) query.location = new RegExp(location, 'i');
+    if (from || to) {
+      query.date = {};
+      if (from) query.date.$gte = new Date(from);
+      if (to) query.date.$lte = new Date(to);
+    }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
-      Measurement.find(query).populate('branch','name').populate('material','name unit').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
+      Measurement.find(query)
+        .populate('branch', 'name')
+        .populate('createdBy', 'name')
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(Number(limit)),
       Measurement.countDocuments(query),
     ]);
     res.json({ success: true, data, total });

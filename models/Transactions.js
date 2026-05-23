@@ -41,15 +41,17 @@ const measurementRowSchema = new mongoose.Schema({
 
 // Measurement (diary-format: header + rows)
 const measurementSchema = new mongoose.Schema({
-  branch:   { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
-  location: { type: String, required: true },
-  site:     { type: String, default: '' },
-  floor:    { type: String, default: '' },
-  villaNo:  { type: String, default: '' },
-  remark:   { type: String, default: '' },
-  date:     { type: Date, required: true, default: Date.now },
-  rows:     { type: [measurementRowSchema], default: [] },
-  createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  branch:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  location:    { type: String, default: '' },
+  site:        { type: String, default: '' },
+  floor:       { type: String, default: '' },
+  villaNo:     { type: String, default: '' },
+  remark:      { type: String, default: '' },
+  date:        { type: Date, required: true, default: Date.now },
+  rows:        { type: [measurementRowSchema], default: [] },
+  amount:      { type: Number, default: 0 },   // rate per unit
+  totalAmount: { type: Number, default: 0 },   // net qty × rate
+  createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
 // Attendance

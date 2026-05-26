@@ -1,10 +1,12 @@
 const { Measurement } = require('../models/Transactions');
+const { Counter } = require('../models/Masters');
 exports.getAll = async (req, res) => {
   try {
-    const { branch, location, from, to, page = 1, limit = 200 } = req.query;
+    const { branch, location, from, to, isPaid, page = 1, limit = 200 } = req.query;
     const query = {};
     if (branch) query.branch = branch;
     if (location) query.location = new RegExp(location, 'i');
+    if (isPaid !== undefined) query.isPaid = isPaid === 'true';
     if (from || to) {
       query.date = {};
       if (from) query.date.$gte = new Date(from);
@@ -32,7 +34,17 @@ exports.getOne = async (req, res) => {
 };
 exports.create = async (req, res) => {
   try {
-    const doc = await Measurement.create({ ...req.body, createdBy: req.user.id });
+    const now = new Date();
+    const yr  = now.getFullYear();
+    const mo  = String(now.getMonth() + 1).padStart(2, '0');
+    const key = `meas_${yr}-${mo}`;
+    const ctr = await Counter.findOneAndUpdate(
+      { _id: key },
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true }
+    );
+    const dcNo = `${yr}-${mo}-${String(ctr.seq).padStart(4, '0')}`;
+    const doc = await Measurement.create({ ...req.body, dcNo, createdBy: req.user.id });
     res.status(201).json({ success: true, data: doc });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 };

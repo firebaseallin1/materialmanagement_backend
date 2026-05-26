@@ -40,6 +40,19 @@ const materialSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// Measurement Type
+const measurementTypeSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true, unique: true },
+  description: { type: String },
+  isActive: { type: Boolean, default: true },
+}, { timestamps: true });
+
+// Auto-increment counter (used for DC numbers, etc.)
+const counterSchema = new mongoose.Schema({
+  _id:  { type: String, required: true },
+  seq:  { type: Number, default: 0 },
+});
+
 // User Category
 const userCategorySchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true, unique: true },
@@ -70,6 +83,8 @@ module.exports = {
   Category: mongoose.model('Category', categorySchema),
   ExpenseCategory: mongoose.model('ExpenseCategory', expenseCategorySchema),
   UserCategory: mongoose.model('UserCategory', userCategorySchema),
+  MeasurementType: mongoose.model('MeasurementType', measurementTypeSchema),
   Material: mongoose.model('Material', materialSchema),
   Employee: mongoose.model('Employee', employeeSchema),
+  Counter: mongoose.model('Counter', counterSchema),
 };

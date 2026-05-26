@@ -1,4 +1,4 @@
-const { Payment, Expense } = require('../models/Transactions');
+const { Payment, Expense, Measurement } = require('../models/Transactions');
 exports.getAll = async (req, res) => {
   try {
     const { branch, type, category, from, to, page = 1, limit = 50 } = req.query;
@@ -6,7 +6,19 @@ exports.getAll = async (req, res) => {
     if (branch) query.branch = branch;
     if (type) query.type = type;
     if (category) query.category = category;
-    if (from || to) { query.date = {}; if (from) query.date.$gte = new Date(from); if (to) query.date.$lte = new Date(to); }
+    if (from || to) {
+      query.date = {};
+      if (from) {
+        const fromD = new Date(from);
+        fromD.setHours(0, 0, 0, 0);
+        query.date.$gte = fromD;
+      }
+      if (to) {
+        const toD = new Date(to);
+        toD.setHours(23, 59, 59, 999);
+        query.date.$lte = toD;
+      }
+    }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
       Payment.find(query).populate('branch','name').populate('employee','name').populate('createdBy','name').sort({ date: -1 }).skip(skip).limit(Number(limit)),
@@ -32,6 +44,13 @@ exports.create = async (req, res) => {
         { $set: { isPaid: true, paymentId: doc._id } }
       );
     }
+    // Mark linked measurements as paid
+    if (req.body.category === 'measurement' && Array.isArray(req.body.measurementIds) && req.body.measurementIds.length) {
+      await Measurement.updateMany(
+        { _id: { $in: req.body.measurementIds } },
+        { $set: { isPaid: true, paymentId: doc._id } }
+      );
+    }
     res.status(201).json({ success: true, data: doc });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 };
@@ -43,6 +62,15 @@ exports.update = async (req, res) => {
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 };
 exports.remove = async (req, res) => {
-  try { await Payment.findByIdAndDelete(req.params.id); res.json({ success: true, message: 'Deleted' }); }
-  catch (err) { res.status(500).json({ success: false, message: err.message }); }
+  try {
+    const doc = await Payment.findById(req.params.id);
+    if (doc && doc.category === 'measurement' && doc.measurementIds && doc.measurementIds.length) {
+      await Measurement.updateMany(
+        { _id: { $in: doc.measurementIds } },
+        { $set: { isPaid: false, paymentId: null } }
+      );
+    }
+    await Payment.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Deleted' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 };

@@ -34,13 +34,16 @@ const measurementRowSchema = new mongoose.Schema({
   d:      { type: Number, default: 0 },
   nos:    { type: Number, default: 1 },
   total:  { type: Number, default: 0 },
-  beamNo: { type: String, default: '' },
-  type:   { type: String, enum: ['inside', 'open'], default: 'inside' },
-  room:   { type: String, default: '' },
+  beamNo:              { type: String, default: '' },
+  type:                { type: String, enum: ['inside', 'open'], default: 'inside' },
+  room:                { type: String, default: '' },
+  measurementTypeId:   { type: mongoose.Schema.Types.ObjectId, ref: 'MeasurementType' },
+  measurementTypeName: { type: String, default: '' },
 }, { _id: false });
 
 // Measurement (diary-format: header + rows)
 const measurementSchema = new mongoose.Schema({
+  dcNo:        { type: String, unique: true, sparse: true },
   branch:      { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   location:    { type: String, default: '' },
   site:        { type: String, default: '' },
@@ -51,6 +54,8 @@ const measurementSchema = new mongoose.Schema({
   rows:        { type: [measurementRowSchema], default: [] },
   amount:      { type: Number, default: 0 },   // rate per unit
   totalAmount: { type: Number, default: 0 },   // net qty × rate
+  isPaid:      { type: Boolean, default: false },
+  paymentId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Payment' },
   createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 
@@ -108,7 +113,7 @@ const paymentSchema = new mongoose.Schema({
   referenceNo: { type: String },
   description: { type: String },
   type: { type: String, enum: ['received', 'paid'], required: true },
-  category: { type: String, enum: ['labor', 'transport', 'expense', 'other'], default: 'other' },
+  category: { type: String, enum: ['labor', 'transport', 'expense', 'measurement', 'regular', 'other'], default: 'other' },
   totalDue: { type: Number },
   // Employee salary/advance payment linkage
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
@@ -124,6 +129,8 @@ const paymentSchema = new mongoose.Schema({
   vehicleNo: { type: String },
   // Expense payment linkage
   expenseIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Expense' }],
+  // Measurement payment linkage
+  measurementIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Measurement' }],
   createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });
 

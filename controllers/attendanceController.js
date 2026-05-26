@@ -30,8 +30,16 @@ exports.getAll = async (req, res) => {
     if (status) query.status = status;
     if (from || to) {
       query.date = {};
-      if (from) query.date.$gte = new Date(from);
-      if (to) query.date.$lte = new Date(to);
+      if (from) {
+        const fromD = new Date(from);
+        fromD.setHours(0, 0, 0, 0);
+        query.date.$gte = fromD;
+      }
+      if (to) {
+        const toD = new Date(to);
+        toD.setHours(23, 59, 59, 999);
+        query.date.$lte = toD;
+      }
     }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([

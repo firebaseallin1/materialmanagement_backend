@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Employee } = require('../models/Masters');
+const { Employee, Counter } = require('../models/Masters');
 const { protect } = require('../middleware/auth');
 
 // Helper: build base query — admin sees all, user sees only their own
@@ -55,7 +55,14 @@ router.get('/:id', protect, async (req, res) => {
 // POST /api/employees
 router.post('/', protect, async (req, res) => {
   try {
-    const doc = await Employee.create({ ...req.body, createdBy: req.user.id });
+    const ctr = await Counter.findOneAndUpdate(
+      { _id: 'employee' },
+      { $inc: { seq: 1 } },
+      { upsert: true, new: true }
+    );
+    const empCode = `EMP${String(ctr.seq).padStart(3, '0')}`;
+    const { empCode: _ignored, ...rest } = req.body;
+    const doc = await Employee.create({ ...rest, empCode, createdBy: req.user.id });
     const populated = await doc.populate('branch', 'name');
     res.status(201).json({ success: true, data: populated });
   } catch (err) {
@@ -80,16 +87,16 @@ router.put('/:id', protect, async (req, res) => {
   }
 });
 
-// DELETE /api/employees/:id  (soft delete)
+// DELETE /api/employees/:id  (hard delete — admin only)
 router.delete('/:id', protect, async (req, res) => {
   try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    }
     const existing = await Employee.findById(req.params.id);
     if (!existing) return res.status(404).json({ success: false, message: 'Employee not found' });
-    if (req.user.role !== 'admin' && String(existing.createdBy) !== req.user.id) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
-    }
-    await Employee.findByIdAndUpdate(req.params.id, { isActive: false });
-    res.json({ success: true, message: 'Employee deactivated successfully' });
+    await Employee.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: 'Employee deleted successfully' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

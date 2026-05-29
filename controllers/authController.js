@@ -26,12 +26,15 @@ exports.login = async (req, res) => {
       {
       return res.status(400).json({ success: false, message: 'User ID and password required' });
       }
-    const user = await User.findOne({ userId }).populate('branch').populate('userCategory', 'name permissions');
+    const user = await User.findOne({ userId })
+      .populate('branch')
+      .populate('userCategory', 'name permissions')
+      .populate('employees', 'name empCode designation photo hourRate');
     console.log(user);
     if (!user)
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     if (!user.isActive) return res.status(403).json({ success: false, message: 'Account deactivated' });
-    res.json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, userId: user.userId, role: user.role, branch: user.branch, userCategory: user.userCategory } });
+    res.json({ success: true, token: generateToken(user._id), user: { id: user._id, name: user.name, userId: user.userId, role: user.role, branch: user.branch, userCategory: user.userCategory, employees: user.employees } });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -40,7 +43,10 @@ exports.login = async (req, res) => {
 // @GET /api/auth/me
 exports.getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).populate('branch').populate('userCategory', 'name permissions');
+    const user = await User.findById(req.user.id)
+      .populate('branch')
+      .populate('userCategory', 'name permissions')
+      .populate('employees', 'name empCode designation photo hourRate');
     res.json({ success: true, data: user });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

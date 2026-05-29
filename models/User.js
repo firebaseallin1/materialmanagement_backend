@@ -9,7 +9,7 @@ const userSchema = new mongoose.Schema({
   branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
   userCategory: { type: mongoose.Schema.Types.ObjectId, ref: 'UserCategory' },
   photo: { type: String },
-  employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee' },
+  employees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Employee' }],
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 

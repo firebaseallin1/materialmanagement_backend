@@ -25,6 +25,7 @@ router.get('/', protect, async (req, res) => {
     const users = await User.find()
       .populate('branch', 'name')
       .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate')
       .select('-password');
     res.json({ success: true, data: users });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
@@ -36,6 +37,7 @@ router.post('/', protect, adminOnly, async (req, res) => {
     const populated = await User.findById(user._id)
       .populate('branch', 'name')
       .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate')
       .select('-password');
     res.status(201).json({ success: true, data: populated });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
@@ -47,6 +49,7 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     const user = await User.findByIdAndUpdate(req.params.id, rest, { new: true })
       .populate('branch', 'name')
       .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate')
       .select('-password');
     res.json({ success: true, data: user });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }

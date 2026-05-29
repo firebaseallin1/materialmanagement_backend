@@ -73,6 +73,11 @@ const employeeSchema = new mongoose.Schema({
   joiningDate: { type: Date },
   address:     { type: String, trim: true },
   photo:       { type: String, default: '' },
+  hourRate:    { type: Number, default: 0 },
+  aadharNo:    { type: String, trim: true, default: '' },
+  aadharPhoto: { type: String, default: '' },
+  panNo:       { type: String, trim: true, default: '' },
+  panPhoto:    { type: String, default: '' },
   isActive:    { type: Boolean, default: true },
   createdBy:   { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
 }, { timestamps: true });

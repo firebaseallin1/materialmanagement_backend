@@ -1,32 +1,19 @@
 const { Attendance } = require('../models/Transactions');
 const { Employee } = require('../models/Masters');
-
-async function visibleEmployeeIds(req) {
-  if (req.user.role === 'admin') return null;
-  const emps = await Employee.find({ createdBy: req.user.id }, '_id');
-  return emps.map(e => e._id);
-}
+const User = require('../models/User');
 
 exports.getAll = async (req, res) => {
   try {
     const { branch, employee, status, from, to, page = 1, limit = 50 } = req.query;
     const query = {};
 
-    const allowedIds = await visibleEmployeeIds(req);
-    if (allowedIds !== null) {
-      query.employee = { $in: allowedIds };
+    // Non-admin: show only attendance records they created
+    if (req.user.role !== 'admin') {
+      query.createdBy = req.user.id;
     }
 
     if (branch) query.branch = branch;
-    if (employee) {
-      if (allowedIds !== null) {
-        const reqId = employee;
-        const ok = allowedIds.some(id => id.toString() === reqId);
-        if (ok) query.employee = reqId;
-      } else {
-        query.employee = employee;
-      }
-    }
+    if (employee) query.employee = employee;
     if (status) query.status = status;
     if (from || to) {
       query.date = {};
@@ -117,9 +104,13 @@ exports.getSummary = async (req, res) => {
     const toDateEnd = to ? new Date(to) : null;
     if (toDateEnd) toDateEnd.setHours(23, 59, 59, 999);
 
-    // Scope employees
+    // Scope employees — admin sees all; user sees only their linked employees
     let empQuery = { isActive: true };
-    if (req.user.role !== 'admin') empQuery.createdBy = req.user.id;
+    if (req.user.role !== 'admin') {
+      const userDoc = await User.findById(req.user.id).select('employees');
+      const linkedIds = (userDoc?.employees ?? []).map(id => id.toString());
+      empQuery._id = { $in: linkedIds };
+    }
     if (branch) empQuery.branch = branch;
 
     const employees = await Employee.find(empQuery)

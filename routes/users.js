@@ -25,8 +25,7 @@ router.get('/', protect, async (req, res) => {
     const users = await User.find()
       .populate('branch', 'name')
       .populate('userCategory', 'name')
-      .populate('employees', 'name empCode designation photo hourRate')
-      .select('-password');
+      .populate('employees', 'name empCode designation photo hourRate');
     res.json({ success: true, data: users });
   } catch (err) { res.status(500).json({ success: false, message: err.message }); }
 });
@@ -37,20 +36,20 @@ router.post('/', protect, adminOnly, async (req, res) => {
     const populated = await User.findById(user._id)
       .populate('branch', 'name')
       .populate('userCategory', 'name')
-      .populate('employees', 'name empCode designation photo hourRate')
-      .select('-password');
+      .populate('employees', 'name empCode designation photo hourRate');
     res.status(201).json({ success: true, data: populated });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 });
 
 router.put('/:id', protect, adminOnly, async (req, res) => {
   try {
-    const { password, ...rest } = req.body;
-    const user = await User.findByIdAndUpdate(req.params.id, rest, { new: true })
+    const { password, userId, ...rest } = req.body;
+    const updateData = { ...rest };
+    if (password && password.trim()) updateData.password = password.trim();
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true })
       .populate('branch', 'name')
       .populate('userCategory', 'name')
-      .populate('employees', 'name empCode designation photo hourRate')
-      .select('-password');
+      .populate('employees', 'name empCode designation photo hourRate');
     res.json({ success: true, data: user });
   } catch (err) { res.status(400).json({ success: false, message: err.message }); }
 });

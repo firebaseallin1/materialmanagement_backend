@@ -44,8 +44,18 @@ app.use((err, req, res, next) => {
 // Connect DB and start server
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log('MongoDB connected');
+    // Drop the old non-sparse email index so Mongoose recreates it as sparse
+    try {
+      await mongoose.connection.collection('users').dropIndex('email_1');
+      console.log('Dropped old email_1 index — will be recreated as sparse');
+    } catch (_) {
+      // Index already dropped or doesn't exist — safe to ignore
+    }
+    // Sync indexes so sparse email index is created correctly
+    const User = require('./models/User');
+    await User.syncIndexes();
     app.listen(process.env.PORT || 5000, () => {
       console.log(`Server running on port ${process.env.PORT || 5000}`);
     });

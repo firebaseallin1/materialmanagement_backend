@@ -46,6 +46,11 @@ router.put('/:id', protect, adminOnly, async (req, res) => {
     const { password, userId, ...rest } = req.body;
     const updateData = { ...rest };
     if (password && password.trim()) updateData.password = password.trim();
+    // Safety: never downgrade an existing admin's role to user
+    if (updateData.role === 'user') {
+      const existing = await User.findById(req.params.id).select('role');
+      if (existing?.role === 'admin') delete updateData.role;
+    }
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true })
       .populate('branch', 'name')
       .populate('userCategory', 'name')

@@ -4,8 +4,8 @@ const { Stock, Attendance, Measurement, Transport, Expense, Payment } = require(
 
 const buildDateQuery = (from, to) => {
   const q = {};
-  if (from) q.$gte = new Date(from);
-  if (to) q.$lte = new Date(new Date(to).setHours(23, 59, 59));
+  if (from) q.$gte = new Date(from.substring(0,10) + 'T00:00:00.000Z');
+  if (to)   q.$lte = new Date(to.substring(0,10)   + 'T23:59:59.999Z');
   return Object.keys(q).length ? q : undefined;
 };
 

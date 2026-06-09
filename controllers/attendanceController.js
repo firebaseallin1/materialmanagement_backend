@@ -2,6 +2,13 @@ const { Attendance } = require('../models/Transactions');
 const { Employee } = require('../models/Masters');
 const User = require('../models/User');
 
+// Always extract the YYYY-MM-DD part and build a pure UTC date,
+// regardless of whether the caller sends "2026-06-07", "2026-06-07T00:00:00+05:30", etc.
+const utcDay = (str, end = false) => {
+  const d = str.substring(0, 10);
+  return new Date(d + (end ? 'T23:59:59.999Z' : 'T00:00:00.000Z'));
+};
+
 exports.getAll = async (req, res) => {
   try {
     const { branch, employee, status, from, to, page = 1, limit = 50 } = req.query;
@@ -17,16 +24,8 @@ exports.getAll = async (req, res) => {
     if (status) query.status = status;
     if (from || to) {
       query.date = {};
-      if (from) {
-        const fromD = new Date(from);
-        fromD.setHours(0, 0, 0, 0);
-        query.date.$gte = fromD;
-      }
-      if (to) {
-        const toD = new Date(to);
-        toD.setHours(23, 59, 59, 999);
-        query.date.$lte = toD;
-      }
+      if (from) query.date.$gte = utcDay(from);
+      if (to)   query.date.$lte = utcDay(to, true);
     }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([
@@ -56,10 +55,8 @@ exports.create = async (req, res) => {
   try {
     const { employee, date } = req.body;
     if (employee && date) {
-      const dayStart = new Date(date);
-      dayStart.setHours(0, 0, 0, 0);
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
+      const dayStart = utcDay(date);
+      const dayEnd = utcDay(date, true);
       const exists = await Attendance.findOne({ employee, date: { $gte: dayStart, $lte: dayEnd } });
       if (exists) return res.status(400).json({ success: false, message: 'Attendance already marked for this employee on the selected date.' });
     }
@@ -100,9 +97,8 @@ exports.getSummary = async (req, res) => {
     const { branch, from, to } = req.query;
     const { Payment } = require('../models/Transactions');
 
-    const fromDate = from ? new Date(from) : null;
-    const toDateEnd = to ? new Date(to) : null;
-    if (toDateEnd) toDateEnd.setHours(23, 59, 59, 999);
+    const fromDate = from ? utcDay(from) : null;
+    const toDateEnd = to ? utcDay(to, true) : null;
 
     // Scope employees — admin sees all; user sees only their linked employees
     let empQuery = { isActive: true };

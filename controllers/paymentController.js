@@ -7,17 +7,10 @@ exports.getAll = async (req, res) => {
     if (type) query.type = type;
     if (category) query.category = category;
     if (from || to) {
+      const utcDay = (s, end = false) => new Date(s.substring(0, 10) + (end ? 'T23:59:59.999Z' : 'T00:00:00.000Z'));
       query.date = {};
-      if (from) {
-        const fromD = new Date(from);
-        fromD.setHours(0, 0, 0, 0);
-        query.date.$gte = fromD;
-      }
-      if (to) {
-        const toD = new Date(to);
-        toD.setHours(23, 59, 59, 999);
-        query.date.$lte = toD;
-      }
+      if (from) query.date.$gte = utcDay(from);
+      if (to)   query.date.$lte = utcDay(to, true);
     }
     const skip = (page - 1) * limit;
     const [data, total] = await Promise.all([

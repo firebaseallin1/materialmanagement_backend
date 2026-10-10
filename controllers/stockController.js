@@ -9,6 +9,28 @@ const _populate = (q) =>
    .populate('toBranch', 'name')
    .populate('createdBy', 'name');
 
+// ── Available qty of a material at a branch ───────────────────────────────────
+// store-branch (has 'store' entries): stored - out; other branches: in - out
+const _branchBalance = async (material, branch) => {
+  const mongoose = require('mongoose');
+  const [row] = await Stock.aggregate([
+    { $match: { material: new mongoose.Types.ObjectId(material), branch: new mongoose.Types.ObjectId(branch) } },
+    {
+      $group: {
+        _id: null,
+        stored: { $sum: { $cond: [{ $or: [
+          { $eq: ['$transactionType', 'store'] },
+          { $and: [{ $eq: [{ $ifNull: ['$transactionType', null] }, null] }, { $eq: ['$type', 'in'] }] },
+        ] }, '$quantity', 0] } },
+        inQty:  { $sum: { $cond: [{ $eq: ['$type', 'in'] },  '$quantity', 0] } },
+        outQty: { $sum: { $cond: [{ $eq: ['$type', 'out'] }, '$quantity', 0] } },
+      },
+    },
+  ]);
+  if (!row) return 0;
+  return row.stored > 0 ? row.stored - row.outQty : row.inQty - row.outQty;
+};
+
 // ── Get all stock ledger entries (with filters) ───────────────────────────────
 exports.getAll = async (req, res) => {
   try {
@@ -95,7 +117,6 @@ exports.create = async (req, res) => {
       material, branch, fromBranch, toBranch, quantity, date, remarks,
       transportName, driverName, vehicleName, distance, cost,
     } = req.body;
-    const mongoose = require('mongoose');
 
     // ── STORE STOCK ──────────────────────────────────────────────────────────
     if (transactionType === 'store') {
@@ -125,13 +146,7 @@ exports.create = async (req, res) => {
     if (!quantity || quantity <= 0) return res.status(400).json({ success: false, message: 'Quantity must be > 0' });
 
     // Check available balance in fromBranch
-    const rows = await Stock.aggregate([
-      { $match: { material: new mongoose.Types.ObjectId(material), branch: new mongoose.Types.ObjectId(fromBranch) } },
-      { $group: { _id: '$type', total: { $sum: '$quantity' } } },
-    ]);
-    const inQty  = rows.find(r => r._id === 'in')?.total  ?? 0;
-    const outQty = rows.find(r => r._id === 'out')?.total ?? 0;
-    const available = inQty - outQty;
+    const available = await _branchBalance(material, fromBranch);
     if (quantity > available) {
       return res.status(400).json({ success: false, message: `Insufficient stock. Available: ${available}` });
     }
@@ -214,8 +229,8 @@ exports.remove = async (req, res) => {
 //   stored   = qty formally stored at the store-branch (via 'store' transactions)
 //   dispatched = qty moved OUT from the store-branch only
 //   returned   = qty returned back TO the store-branch via stock_move
-//   moved    = dispatched - returned  (net qty currently away from store-branch)
-//   balance  = stored - moved         (= stored - dispatched + returned)
+//   moved    = dispatched             (total qty sent out to other branches)
+//   balance  = stored - moved         (in - out)
 exports.summary = async (req, res) => {
   try {
     const mongoose = require('mongoose');
@@ -252,13 +267,9 @@ exports.summary = async (req, res) => {
           returned:   { $sum: { $cond: [{ $gt: ['$storeQty', 0] }, '$moveInQty',  0] } },
         },
       },
-      // moved = net qty still away from store-branch; balance = what's in store
-      {
-        $addFields: {
-          moved:   { $max: [{ $subtract: ['$dispatched', '$returned'] }, 0] },
-          balance: { $subtract: [{ $add: ['$stored', '$returned'] }, '$dispatched'] },
-        },
-      },
+      // moved = total qty sent out to other branches; balance = stored - moved
+      { $addFields: { moved: '$dispatched' } },
+      { $addFields: { balance: { $subtract: ['$stored', '$moved'] } } },
       { $lookup: { from: 'materials', localField: '_id', foreignField: '_id', as: 'material' } },
       { $unwind: '$material' },
       { $sort: { 'material.name': 1 } },
@@ -272,17 +283,10 @@ exports.summary = async (req, res) => {
 // ── Balance for a specific material + branch ──────────────────────────────────
 exports.balance = async (req, res) => {
   try {
-    const mongoose = require('mongoose');
     const { material, branch } = req.query;
     if (!material || !branch) return res.json({ success: true, balance: 0 });
 
-    const rows = await Stock.aggregate([
-      { $match: { material: new mongoose.Types.ObjectId(material), branch: new mongoose.Types.ObjectId(branch) } },
-      { $group: { _id: '$type', total: { $sum: '$quantity' } } },
-    ]);
-    const inQty  = rows.find(r => r._id === 'in')?.total  ?? 0;
-    const outQty = rows.find(r => r._id === 'out')?.total ?? 0;
-    res.json({ success: true, balance: inQty - outQty });
+    res.json({ success: true, balance: await _branchBalance(material, branch) });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -293,7 +297,8 @@ exports.balance = async (req, res) => {
 //   stored  = formal 'store' transactions at this branch
 //   moveIn  = stock received via stock_move (from another branch)
 //   moveOut = stock dispatched via stock_move (to another branch)
-//   balance = stored + moveIn - moveOut  (physical qty at this branch)
+//   balance = stored - moveOut           (store-branch: stored > 0)
+//           = moveIn - moveOut           (other branches)
 exports.branchWise = async (req, res) => {
   try {
     const mongoose = require('mongoose');
@@ -321,8 +326,18 @@ exports.branchWise = async (req, res) => {
           moveIn:  { $sum: { $cond: [isMoveIn,  '$quantity', 0] } },
         },
       },
-      // balance = stored + moveIn - moveOut
-      { $addFields: { balance: { $subtract: [{ $add: ['$stored', '$moveIn'] }, '$moveOut'] } } },
+      // store-branch: balance = stored - moveOut; other branches: balance = moveIn - moveOut
+      {
+        $addFields: {
+          balance: {
+            $cond: [
+              { $gt: ['$stored', 0] },
+              { $subtract: ['$stored', '$moveOut'] },
+              { $subtract: ['$moveIn', '$moveOut'] },
+            ],
+          },
+        },
+      },
       { $lookup: { from: 'materials', localField: '_id.material', foreignField: '_id', as: 'material' } },
       { $unwind: '$material' },
       { $lookup: { from: 'branches',  localField: '_id.branch',   foreignField: '_id', as: 'branch'   } },

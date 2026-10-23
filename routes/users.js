@@ -1,0 +1,74 @@
+const express = require('express');
+const router = express.Router();
+const User = require('../models/User');
+const { protect, adminOnly } = require('../middleware/auth');
+
+// Generate next available userId for a given category prefix
+// GET /api/users/generate-id?catPrefix=SAL
+router.get('/generate-id', protect, async (req, res) => {
+  try {
+    const { catPrefix = '' } = req.query;
+    const prefix = catPrefix.toUpperCase().substring(0, 3).padEnd(3, 'X');
+    const pattern = new RegExp(`^${prefix}\\d{3}$`);
+    const users = await User.find({ userId: pattern }).select('userId');
+    const nums = users.map(u => parseInt(u.userId.slice(-3), 10)).filter(n => !isNaN(n));
+    const next = nums.length > 0 ? Math.max(...nums) + 1 : 1;
+    const userId = prefix + String(next).padStart(3, '0');
+    res.json({ success: true, userId });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.get('/', protect, async (req, res) => {
+  try {
+    const users = await User.find()
+      .populate('branch', 'name')
+      .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate');
+    res.json({ success: true, data: users });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+router.post('/', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.create(req.body);
+    const populated = await User.findById(user._id)
+      .populate('branch', 'name')
+      .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate');
+    res.status(201).json({ success: true, data: populated });
+  } catch (err) { res.status(400).json({ success: false, message: err.message }); }
+});
+
+router.put('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const { password, userId, ...rest } = req.body;
+    const updateData = { ...rest };
+    if (password && password.trim()) updateData.password = password.trim();
+    // Safety: never downgrade or deactivate an existing admin
+    const existing = await User.findById(req.params.id).select('role');
+    if (existing?.role === 'admin') {
+      if (updateData.role === 'user') delete updateData.role;
+      updateData.isActive = true;
+    }
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true })
+      .populate('branch', 'name')
+      .populate('userCategory', 'name')
+      .populate('employees', 'name empCode designation photo hourRate');
+    res.json({ success: true, data: user });
+  } catch (err) { res.status(400).json({ success: false, message: err.message }); }
+});
+
+router.delete('/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const existing = await User.findById(req.params.id).select('role');
+    if (!existing) return res.status(404).json({ success: false, message: 'User not found' });
+    if (existing.role === 'admin')
+      return res.status(403).json({ success: false, message: 'Admin account cannot be deleted or deactivated' });
+    await User.findByIdAndUpdate(req.params.id, { isActive: false });
+    res.json({ success: true, message: 'User deactivated' });
+  } catch (err) { res.status(500).json({ success: false, message: err.message }); }
+});
+
+module.exports = router;

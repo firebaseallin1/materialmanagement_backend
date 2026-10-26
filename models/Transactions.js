@@ -151,7 +151,10 @@ const userExpenseSchema = new mongoose.Schema({
 // Advance
 const advanceSchema = new mongoose.Schema({
   employee: { type: mongoose.Schema.Types.ObjectId, ref: 'Employee', required: true },
-  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', required: true },
+  // Not entered on the Advance screen — copied from the employee for branch-wise reports
+  branch: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch' },
+  // given = advance paid to the employee, returned = employee paid it back
+  type: { type: String, enum: ['given', 'returned'], default: 'given' },
   amount: { type: Number, required: true, min: 0 },
   date: { type: Date, required: true, default: Date.now },
   remarks: { type: String },

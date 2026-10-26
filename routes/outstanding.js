@@ -35,7 +35,14 @@ router.get('/', protect, async (req, res) => {
     const [advanceAgg, paymentAgg] = await Promise.all([
       Advance.aggregate([
         { $match: { employee: { $in: empIds } } },
-        { $group: { _id: '$employee', totalAdvance: { $sum: '$amount' }, count: { $sum: 1 } } },
+        // Returned advances reduce the employee's advance total
+        {
+          $group: {
+            _id: '$employee',
+            totalAdvance: { $sum: { $cond: [{ $eq: ['$type', 'returned'] }, { $multiply: ['$amount', -1] }, '$amount'] } },
+            count: { $sum: 1 },
+          },
+        },
       ]),
       Payment.aggregate([
         {
